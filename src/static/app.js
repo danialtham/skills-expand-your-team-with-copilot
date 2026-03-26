@@ -34,6 +34,8 @@ document.addEventListener("DOMContentLoaded", () => {
     technology: { label: "Technology", color: "#e8eaf6", textColor: "#3949ab" },
   };
 
+  const SCHOOL_NAME = "Mergington High School";
+
   // State for activities and filters
   let allActivities = {};
   let currentFilter = "all";
@@ -50,6 +52,45 @@ document.addEventListener("DOMContentLoaded", () => {
     afternoon: { start: "15:00", end: "18:00" }, // After school hours
     weekend: { days: ["Saturday", "Sunday"] }, // Weekend days
   };
+
+  // Build a shareable URL for an activity (clean link with only the activity parameter)
+  function buildActivityUrl(name) {
+    const url = new URL(window.location.origin + window.location.pathname);
+    url.searchParams.set("activity", name);
+    return url.toString();
+  }
+
+  // Scroll to and highlight an activity card if ?activity= is in the URL
+  function scrollToActivityFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const activityName = params.get("activity");
+    if (!activityName) return;
+
+    const cards = activitiesList.querySelectorAll(".activity-card");
+    cards.forEach((card) => {
+      const heading = card.querySelector("h4");
+      if (heading && heading.textContent.trim() === activityName) {
+        card.classList.add("activity-highlight");
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }
+
+  function buildTwitterShareUrl(name, details) {
+    const text = `Check out "${name}" at ${SCHOOL_NAME}! ${details.description} Schedule: ${formatSchedule(details)}`;
+    const url = buildActivityUrl(name);
+    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+  }
+
+  function buildFacebookShareUrl(name) {
+    const url = buildActivityUrl(name);
+    return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+  }
+
+  function buildWhatsAppShareUrl(name, details) {
+    const text = `Check out "${name}" at ${SCHOOL_NAME}! ${details.description} Schedule: ${formatSchedule(details)} ${buildActivityUrl(name)}`;
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  }
 
   // Initialize filters from active elements
   function initializeFilters() {
@@ -402,6 +443,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Apply search and filter, and handle weekend filter in client
       displayFilteredActivities();
+
+      // Scroll to activity if specified in URL
+      scrollToActivityFromUrl();
     } catch (error) {
       activitiesList.innerHTML =
         "<p>Failed to load activities. Please try again later.</p>";
@@ -569,6 +613,15 @@ document.addEventListener("DOMContentLoaded", () => {
         `
         }
       </div>
+      <div class="share-section">
+        <span class="share-label">Share:</span>
+        <div class="share-buttons">
+          <a class="share-btn share-twitter" href="${buildTwitterShareUrl(name, details)}" target="_blank" rel="noopener noreferrer" title="Share on X (Twitter)" aria-label="Share on X (Twitter)">𝕏</a>
+          <a class="share-btn share-facebook" href="${buildFacebookShareUrl(name)}" target="_blank" rel="noopener noreferrer" title="Share on Facebook" aria-label="Share on Facebook">f</a>
+          <a class="share-btn share-whatsapp" href="${buildWhatsAppShareUrl(name, details)}" target="_blank" rel="noopener noreferrer" title="Share on WhatsApp" aria-label="Share on WhatsApp">💬</a>
+          <button class="share-btn share-copy" data-activity="${name}" title="Copy link" aria-label="Copy link">🔗</button>
+        </div>
+      </div>
     `;
 
     // Add click handlers for delete buttons
@@ -586,6 +639,27 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    // Add click handler for copy-link button
+    const copyButton = activityCard.querySelector(".share-copy");
+    copyButton.addEventListener("click", () => {
+      const url = buildActivityUrl(name);
+      navigator.clipboard.writeText(url).then(() => {
+        copyButton.textContent = "✔";
+        copyButton.setAttribute("aria-label", "Link copied!");
+        setTimeout(() => {
+          copyButton.textContent = "🔗";
+          copyButton.setAttribute("aria-label", "Copy link");
+        }, 2000);
+      }).catch(() => {
+        copyButton.textContent = "✖";
+        copyButton.setAttribute("aria-label", "Copy failed");
+        setTimeout(() => {
+          copyButton.textContent = "🔗";
+          copyButton.setAttribute("aria-label", "Copy link");
+        }, 2000);
+      });
+    });
 
     activitiesList.appendChild(activityCard);
   }
